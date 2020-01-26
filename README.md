@@ -1,5 +1,89 @@
 # k3s-raspberrypi-adventures
-HowTo run containers on a RaspberryPI ARM Cluster with Kubernetes (k3s).
+
+HowTo run containers on a RaspberryPI ARM Cluster with Kubernetes (k3s). This repo is a collection of installation guides and HowTos. The goal is to show metrics in Grafana. Everything should be hosted in k3s.
+
+## Known Pitfalls
+
+* popular helm templates are often useless because they contain non-ARM docker images
+* helm templates for old k8s releases are often useless because the API changed to much since then
+* k3s ingress controller is traefik and it is not that easy to use because no documentation exists
+
+## Installation
+
+### Setup SD Cards with HypriotOS
+
+Flashtool: https://github.com/hypriot/flash
+
+```bash
+./flash -u ./device-init_node01.yaml ./hypriotos-rpi-v1.11.3.img
+```
+
+Cloudinit: https://cloudinit.readthedocs.io/
+
+### Setup k3s on master node
+
+Install k3s:
+
+```bash
+curl -sfL https://get.k3s.io | sh -
+```
+
+Check Status:
+
+```bash
+sudo systemctl status k3s
+```
+
+Get join key for other nodes:
+
+```bash
+sudo cat /var/lib/rancher/k3s/server/node-token
+```
+
+### Setup k3s on slave nodes
+
+Install k3s and set it up. `K3S_URL` should be your master node. `K3S_TOKEN` should be your join key.
+
+```bash
+export K3S_URL="https://node01:6443"
+export K3S_TOKEN="K1033794ef5348dacc8041234547ff57d2e2d34cb3ab1d99ac4904b95485::server:c7b43314a7c43821d0b6006671e22dc"
+curl -sfL https://get.k3s.io | K3S_URL=${K3S_URL} K3S_TOKEN=${K3S_TOKEN} sh -
+```
+
+#### Node password rejected error
+
+If the node was already added to the cluster before the following message will appear in the syslog at the node:
+
+```text
+Nov  2 13:25:46 node01 k3s[3427]: time="2019-11-02T13:25:46.686584162+01:00" level=error msg="Node password rejected, contents of '/var/lib/rancher/k3s/agent/node-password.txt' may not match server passwd entry"
+```
+
+You have to remove the password entry on the master for the node.
+
+```bash
+sudo nano /var/lib/rancher/k3s/server/cred/node-passwd
+```
+
+### Setup kubectl on your admin machine
+
+To be able to use `kubectl` from your local host machine your can setup the config with [k3sup](https://github.com/alexellis/k3sup).
+
+```bash
+curl -sLS https://get.k3sup.dev | sh
+sudo install k3sup /usr/local/bin/
+```
+
+Get the kubectl file of an master node where k3s is already installed. Change the `ip` to your master node.
+
+```bash
+k3sup install --skip-install --ip 192.168.178.76 --user pirate
+```
+
+Move the kubeconfig to your local config:
+
+```bash
+mv kubeconfig ~/.kube/config
+```
 
 ## Related Repositories
 
